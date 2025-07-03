@@ -8,6 +8,8 @@ from typing import Tuple
 import zipfile
 import os
 import tempfile
+import uuid
+import shutil
 
 
 class TeachableMachineModel:
@@ -122,23 +124,28 @@ def extract_teachable_machine_files(zip_file) -> Tuple[str, str]:
         model_path = None
         labels_path = None
         
+        # Use single unique ID for related files
+        unique_id = str(uuid.uuid4())
+        
         for root, dirs, files in os.walk(extract_dir):
             for file in files:
                 if file == "keras_model.h5":
-                    # Copy to current directory
-                    model_path = "temp_keras_model.h5"
-                    if os.path.exists(model_path):
-                        os.remove(model_path)
+                    # Create unique filename to prevent collisions
+                    model_path = f"temp_keras_model_{unique_id}.h5"
                     shutil.copy(os.path.join(root, file), model_path)
                 elif file == "labels.txt":
-                    # Copy to current directory
-                    labels_path = "temp_labels.txt"
-                    if os.path.exists(labels_path):
-                        os.remove(labels_path)
+                    # Create unique filename to prevent collisions
+                    labels_path = f"temp_labels_{unique_id}.txt"
                     shutil.copy(os.path.join(root, file), labels_path)
         
         if not model_path:
             raise FileNotFoundError("keras_model.h5 not found in zip file")
+        
+        # Store temp files in session state for cleanup
+        if 'temp_files' not in st.session_state:
+            st.session_state.temp_files = []
+        
+        st.session_state.temp_files.extend([model_path, labels_path])
         
         return model_path, labels_path
     
@@ -324,6 +331,7 @@ class TensorFlowXAIVisualizer:
         
         # Enhance contrast for better visibility
         heatmap_enhanced = np.power(heatmap_smooth, 0.7)  # Gamma correction for better contrast
+        # heatmap_enhanced = heatmap
         heatmap_enhanced = np.clip(heatmap_enhanced, 0, 1)
         
         # Use JET colormap consistently (red = high importance, blue = low importance)
@@ -333,13 +341,16 @@ class TensorFlowXAIVisualizer:
         heatmap_colored = heatmap_colored.astype(np.float32) / 255.0
         
         # Overlay the heatmap on the original image (both in RGB format)
-        # Use alpha blending based on heatmap intensity for better visibility
-        alpha = heatmap_enhanced[..., np.newaxis] * 0.6 + 0.2  # Dynamic alpha based on importance
-        overlay = (1 - alpha) * rgb_img + alpha * heatmap_colored
-        overlay = np.clip(overlay, 0, 1)
+        # Use OpenCV's alpha blending function for better performance
+        rgb_img_uint8 = (rgb_img * 255).astype(np.uint8)
+        heatmap_colored_uint8 = (heatmap_colored * 255).astype(np.uint8)
+        
+        # Use weighted average alpha blending with OpenCV
+        alpha = 0.6  # Fixed alpha for consistent blending
+        overlay = cv2.addWeighted(rgb_img_uint8, 1 - alpha, heatmap_colored_uint8, alpha, 0)
         
         # Convert back to BGR for consistency with OpenCV
-        overlay_bgr = cv2.cvtColor((overlay * 255).astype(np.uint8), cv2.COLOR_RGB2BGR)
+        overlay_bgr = cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR)
         
         # Create heatmap for separate display (using the original 224x224 heatmap)
         heatmap_display = np.uint8(255 * heatmap)
@@ -499,12 +510,15 @@ def main():
         
         finally:
             # Clean up temporary files for security
-            for temp_file in ["temp_keras_model.h5", "temp_labels.txt"]:
-                if os.path.exists(temp_file):
-                    try:
-                        os.remove(temp_file)
-                    except:
-                        pass
+            # Clean up files created by this session
+            if 'temp_files' in st.session_state:
+                for temp_file in st.session_state.temp_files:
+                    if os.path.exists(temp_file):
+                        try:
+                            os.remove(temp_file)
+                        except:
+                            pass
+                st.session_state.temp_files = []
     
     else:
         st.info("👈 サイドバーからTeachable Machineモデル（zip）をアップロードしてください。")
