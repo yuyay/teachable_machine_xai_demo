@@ -384,7 +384,7 @@ class TensorFlowXAIVisualizer:
 def main():
     # Set page config for better mobile compatibility
     st.set_page_config(
-        page_title="XAI Demo - Teachable Machine + GradCAM", 
+        page_title="XAI Demo - Teachable Machine + Integrated Gradients", 
         layout="wide",
         initial_sidebar_state="expanded"
     )
