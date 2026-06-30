@@ -54,3 +54,4 @@ def test_visualizer_generate_explanation_shapes(tiny_model):
     assert overlay.shape == (config.IMG_SIZE, config.IMG_SIZE, 3)
     assert overlay.dtype == np.uint8
     assert heatmap.shape == (config.IMG_SIZE, config.IMG_SIZE)
+    assert heatmap.dtype == np.uint8

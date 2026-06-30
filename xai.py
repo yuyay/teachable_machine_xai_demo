@@ -79,9 +79,10 @@ class TensorFlowXAIVisualizer:
     def _generate_integrated_gradients(
         self, img_array: tf.Tensor, original_image: np.ndarray, class_idx: int
     ) -> Tuple[np.ndarray, np.ndarray]:
+        """Generate an IG heatmap and return (overlay_bgr, heatmap_display)."""
         baseline = tf.zeros_like(img_array[0])
         heatmap = integrated_gradients(
-            self.model, img_array[0], baseline, class_idx
+            self.model, img_array[0].numpy(), baseline.numpy(), class_idx
         )
         heatmap = self._smooth_heatmap(heatmap, sigma=2.0)
         return self._create_visualization(original_image, heatmap)
@@ -89,6 +90,7 @@ class TensorFlowXAIVisualizer:
     def _generate_guided_backprop(
         self, img_array: tf.Tensor, original_image: np.ndarray, class_idx: int
     ) -> Tuple[np.ndarray, np.ndarray]:
+        """Fallback: gradient-magnitude saliency when IG fails."""
         with tf.GradientTape() as tape:
             tape.watch(img_array)
             predictions = self.model(img_array)
@@ -105,6 +107,7 @@ class TensorFlowXAIVisualizer:
         return self._create_visualization(original_image, heatmap)
 
     def _smooth_heatmap(self, heatmap: np.ndarray, sigma: float = 1.0) -> np.ndarray:
+        """Apply Gaussian smoothing to a heatmap (scipy, OpenCV fallback)."""
         try:
             from scipy.ndimage import gaussian_filter
 
@@ -118,7 +121,8 @@ class TensorFlowXAIVisualizer:
     def _create_visualization(
         self, image: np.ndarray, heatmap: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray]:
-        if image.shape[2] == 3:
+        """Overlay a JET-colored heatmap on the center-cropped image."""
+        if len(image.shape) == 3 and image.shape[2] == 3:
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         else:
             image_rgb = image
@@ -145,6 +149,7 @@ class TensorFlowXAIVisualizer:
         return overlay_bgr, heatmap_display
 
     def _preprocess_image(self, image: np.ndarray) -> tf.Tensor:
+        """Preprocess a BGR image into a (1,224,224,3) normalized tensor."""
         if len(image.shape) == 3 and image.shape[2] == 3:
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         else:
