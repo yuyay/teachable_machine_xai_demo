@@ -55,3 +55,24 @@ def test_visualizer_generate_explanation_shapes(tiny_model):
     assert overlay.dtype == np.uint8
     assert heatmap.shape == (config.IMG_SIZE, config.IMG_SIZE)
     assert heatmap.dtype == np.uint8
+
+
+def test_registry_lists_default_first():
+    from xai import list_xai_methods
+    methods = list_xai_methods()
+    assert methods[0] == "Integrated Gradients"
+    assert "Integrated Gradients" in methods
+
+
+def test_get_xai_method_falls_back_to_default():
+    from xai import get_xai_method, XAI_METHODS
+    assert callable(get_xai_method("Integrated Gradients"))
+    assert get_xai_method("Nonexistent") is XAI_METHODS["Integrated Gradients"]
+
+
+def test_ig_adapter_returns_normalized_map(tiny_model, sample_image):
+    from xai import get_xai_method
+    fn = get_xai_method("Integrated Gradients")
+    hm = fn(tiny_model, sample_image, 0)
+    assert hm.shape == (config.IMG_SIZE, config.IMG_SIZE)
+    assert hm.min() >= 0.0 and hm.max() <= 1.0 + 1e-6

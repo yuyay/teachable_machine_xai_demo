@@ -3,9 +3,32 @@ import numpy as np
 import cv2
 import tensorflow as tf
 from PIL import Image, ImageOps
-from typing import Tuple
+from typing import Callable, Dict, List, Tuple
 
 import config
+
+
+XAI_METHODS: Dict[str, Callable[..., np.ndarray]] = {}
+
+
+def register_xai_method(name: str) -> Callable:
+    """Register an XAI method under `name` in the global registry."""
+    def deco(fn: Callable[..., np.ndarray]) -> Callable[..., np.ndarray]:
+        XAI_METHODS[name] = fn
+        return fn
+    return deco
+
+
+def get_xai_method(name: str) -> Callable[..., np.ndarray]:
+    """Return the registered method, or the default method for unknown names."""
+    return XAI_METHODS.get(name, XAI_METHODS[config.DEFAULT_XAI_METHOD])
+
+
+def list_xai_methods() -> List[str]:
+    """Return registered method names with the default method first."""
+    names = list(XAI_METHODS.keys())
+    names.sort(key=lambda n: (n != config.DEFAULT_XAI_METHOD, n))
+    return names
 
 
 def integrated_gradients(
@@ -58,6 +81,15 @@ def integrated_gradients(
         tf.reduce_max(importance) - tf.reduce_min(importance) + 1e-8
     )
     return importance.numpy()
+
+
+@register_xai_method("Integrated Gradients")
+def _ig_explain(
+    model: tf.keras.Model, image: np.ndarray, class_idx: int
+) -> np.ndarray:
+    """Registry adapter: Integrated Gradients with a zero baseline."""
+    baseline = np.zeros_like(image)
+    return integrated_gradients(model, image, baseline, class_idx)
 
 
 class TensorFlowXAIVisualizer:
