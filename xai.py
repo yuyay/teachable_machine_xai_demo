@@ -63,7 +63,7 @@ def integrated_gradients(
 class TensorFlowXAIVisualizer:
     """Integrated-Gradients-based XAI visualizer for Teachable Machine models."""
 
-    def __init__(self, model) -> None:
+    def __init__(self, model: tf.keras.Model) -> None:
         self.model = model
 
     def generate_explanation(

@@ -7,7 +7,7 @@ import threading
 
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 import streamlit as st
 import tensorflow as tf
 from PIL import Image
@@ -25,7 +25,7 @@ def configure_tensorflow() -> None:
 
     Guarded once per Streamlit session via session_state; if the TF runtime
     is already initialized in this process, the RuntimeError is ignored
-    (thread settings are process-global and only appltable before init).
+    (thread settings are process-global and only applicable before init).
     """
     if st.session_state.get("_tf_configured"):
         return
@@ -78,12 +78,12 @@ def _render_xai(
                 use_container_width=True,
             )
             st.subheader("🌡️ 重要度マップ")
-            fig, ax = plt.subplots(figsize=(6, 6))
+            fig = Figure(figsize=(6, 6))
+            ax = fig.subplots()
             ax.imshow(heatmap, cmap="jet")
             ax.axis("off")
             ax.set_title("Integrated Gradients Importance Map")
             st.pyplot(fig)
-            plt.close()
         except Exception as e:  # noqa: BLE001 - surface to UI
             st.error(f"XAI可視化生成エラー: {str(e)}")
             st.info("モデルの予測処理で問題が発生した可能性があります。")
