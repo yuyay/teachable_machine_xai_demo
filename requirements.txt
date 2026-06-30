@@ -1,5 +1,6 @@
 streamlit>=1.28.0
-tensorflow==2.15.0
+tensorflow-cpu==2.15.0; platform_system == "Linux"
+tensorflow==2.15.0; platform_system != "Linux"
 opencv-python-headless>=4.8.0
 pillow>=10.0.0
 numpy>=1.24.0
