@@ -1,7 +1,10 @@
 """Tests for model loading and label parsing."""
+import io
 import os
+import zipfile
 
 import numpy as np
+import pytest
 
 import config
 from model import parse_class_names, load_model_from_zip, TeachableMachineModel
@@ -39,3 +42,11 @@ def test_predict_returns_probs_and_index(model_zip_bytes):
     assert probs.shape[0] >= 2
     assert 0 <= idx < probs.shape[0]
     assert np.all(np.isfinite(probs))
+
+
+def test_load_model_from_zip_raises_on_missing_model():
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("labels.txt", "0 Cat\n")
+    with pytest.raises(FileNotFoundError, match="keras_model.h5"):
+        load_model_from_zip(buf.getvalue())
