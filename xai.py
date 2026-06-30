@@ -1,15 +1,12 @@
 """TensorFlow Integrated Gradients XAI visualization."""
 import numpy as np
-import cv2
 import tensorflow as tf
-from PIL import Image, ImageOps
-from typing import Tuple
 
 import config
 
 
 def integrated_gradients(
-    model,
+    model: tf.keras.Model,
     image: np.ndarray,
     baseline: np.ndarray,
     class_idx: int,
