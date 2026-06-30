@@ -158,7 +158,7 @@ def rise(
 
 
 class TensorFlowXAIVisualizer:
-    """Integrated-Gradients-based XAI visualizer for Teachable Machine models."""
+    """XAI visualizer for Teachable Machine models; dispatches to registered methods."""
 
     def __init__(self, model: tf.keras.Model) -> None:
         self.model = model

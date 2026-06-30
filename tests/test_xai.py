@@ -123,3 +123,18 @@ def test_generate_explanation_unknown_method_falls_back(tiny_model):
     overlay, heatmap = viz.generate_explanation(image_bgr, 0, method="does-not-exist")
     assert overlay.shape == (config.IMG_SIZE, config.IMG_SIZE, 3)
     assert heatmap.shape == (config.IMG_SIZE, config.IMG_SIZE)
+
+
+def test_generate_explanation_method_raises_falls_back_to_ig(tiny_model, monkeypatch):
+    import xai
+    from xai import TensorFlowXAIVisualizer
+
+    def bad_fn(model, image, class_idx):
+        raise RuntimeError("simulated method failure")
+
+    monkeypatch.setitem(xai.XAI_METHODS, "BADMETHOD", bad_fn)
+    viz = TensorFlowXAIVisualizer(tiny_model)
+    image_bgr = (np.random.RandomState(7).rand(224, 224, 3) * 255).astype(np.uint8)
+    overlay, heatmap = viz.generate_explanation(image_bgr, 0, method="BADMETHOD")
+    assert overlay.shape == (config.IMG_SIZE, config.IMG_SIZE, 3)
+    assert heatmap.shape == (config.IMG_SIZE, config.IMG_SIZE)
