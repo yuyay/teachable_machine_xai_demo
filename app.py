@@ -14,7 +14,7 @@ from PIL import Image
 
 import config
 from model import load_model_cached, hash_bytes, TeachableMachineModel
-from xai import TensorFlowXAIVisualizer
+from xai import TensorFlowXAIVisualizer, list_xai_methods
 
 # In-instance guard so concurrent sessions don't all spike memory at once.
 _XAI_SEMAPHORE = threading.BoundedSemaphore(config.XAI_SEMAPHORE)
@@ -63,18 +63,19 @@ def _render_xai(
     xai_visualizer: TensorFlowXAIVisualizer,
     image_bgr: np.ndarray,
     predicted_class: int,
+    method: str,
 ) -> None:
     """Run the (semaphore-guarded) XAI computation and render the overlay."""
-    with st.spinner("Integrated Gradientsを生成中..."):
+    with st.spinner(f"{method} を生成中..."):
         try:
             with _XAI_SEMAPHORE:
                 overlay, heatmap = xai_visualizer.generate_explanation(
-                    image_bgr, predicted_class
+                    image_bgr, predicted_class, method
                 )
             overlay_rgb = cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB)
             st.image(
                 overlay_rgb,
-                caption="Integrated Gradients可視化結果",
+                caption=f"{method} 可視化結果",
                 use_container_width=True,
             )
             st.subheader("🌡️ 重要度マップ")
@@ -82,7 +83,7 @@ def _render_xai(
             ax = fig.subplots()
             ax.imshow(heatmap, cmap="jet")
             ax.axis("off")
-            ax.set_title("Integrated Gradients Importance Map")
+            ax.set_title(f"{method} Importance Map")
             st.pyplot(fig)
         except Exception as e:  # noqa: BLE001 - surface to UI
             st.error(f"XAI可視化生成エラー: {str(e)}")
@@ -165,6 +166,8 @@ def main() -> None:
             for i, name in enumerate(tm_model.class_names):
                 st.write(f"{i}: {name}")
 
+    method = st.sidebar.selectbox("説明手法", list_xai_methods())
+
     col1, col2 = st.columns(2)
     with col1:
         st.header("📷 Webカメラ")
@@ -184,7 +187,7 @@ def main() -> None:
     with col2:
         st.header("🔍 XAI可視化")
         if camera_input is not None and image_bgr is not None:
-            _render_xai(xai_visualizer, image_bgr, predicted_class)
+            _render_xai(xai_visualizer, image_bgr, predicted_class, method)
         else:
             st.info("Webカメラで写真を撮影すると、XAI可視化結果が表示されます。")
 

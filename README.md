@@ -10,6 +10,7 @@ Google Teachable Machineで学習した画像認識モデルを読み込み、We
 - **🎯 Teachable Machineモデル対応**: Google Teachable Machineでエクスポートしたzipファイルを直接読み込み
 - **📷 リアルタイム画像分類**: Webカメラで撮影した画像をその場で分類
 - **🔍 XAI可視化**: Integrated Gradientsを使用してモデルの判断根拠を可視化
+- **🔀 説明手法の選択**: Integrated Gradients と RISE を切り替えて比較可能
 - **🎨 スムースなヒートマップ**: 高品質なinterpolationによる美しい可視化
 - **💻 直感的なUI**: Streamlitによる使いやすいWebインターフェース
 - **🌐 クラウド対応**: Streamlit Cloudでの実行をサポート
