@@ -1,4 +1,5 @@
 .git
+.superpowers
 .gitignore
 .venv
 __pycache__
