@@ -65,6 +65,33 @@ Streamlit Cloudでホストされているデモをこちらで試すことが�
 
 > **注意**: 初回アクセス時は、アプリの起動に1-2分程度かかる場合があります。
 
+## ☁️ Cloud Run へのデプロイ
+
+同時アクセス（イベント等）でも安定するよう、本アプリは Google Cloud Run への
+デプロイに対応しています。低 concurrency のインスタンスを水平オートスケール
+させることで、各ユーザーのモデル/推論負荷を複数インスタンスに分散します。
+
+### 前提
+- `gcloud` CLI 認証済み（`gcloud auth login`）、プロジェクト設定済み
+- Cloud Run / Cloud Build / Artifact Registry API 有効化済み
+- Docker（ローカルビルド検証用、任意）
+
+### デプロイ
+```bash
+./deploy.sh
+```
+東京リージョン（`asia-northeast1`）に、cpu 2 / memory 4Gi / concurrency 3 /
+session-affinity / max-instances 10 / 公開（認証なし）でデプロイされます。
+アイドル時はゼロスケールするためコストはほぼ発生しません。
+
+### イベント運用（コールドスタート回避）
+```bash
+# 開始前: 温める
+gcloud run services update xai-demo --region asia-northeast1 --min-instances 2
+# 終了後: ゼロスケールに戻す
+gcloud run services update xai-demo --region asia-northeast1 --min-instances 0
+```
+
 ## 画面説明
 
 ### 左側パネル
