@@ -43,3 +43,14 @@ def test_integrated_gradients_output_normalized(tiny_model, sample_image):
     got = integrated_gradients(tiny_model, sample_image, baseline, class_idx=0)
     assert got.min() >= 0.0
     assert got.max() <= 1.0 + 1e-6
+
+
+def test_visualizer_generate_explanation_shapes(tiny_model):
+    from xai import TensorFlowXAIVisualizer
+
+    viz = TensorFlowXAIVisualizer(tiny_model)
+    image_bgr = (np.random.RandomState(1).rand(300, 400, 3) * 255).astype(np.uint8)
+    overlay, heatmap = viz.generate_explanation(image_bgr, class_idx=0)
+    assert overlay.shape == (config.IMG_SIZE, config.IMG_SIZE, 3)
+    assert overlay.dtype == np.uint8
+    assert heatmap.shape == (config.IMG_SIZE, config.IMG_SIZE)
