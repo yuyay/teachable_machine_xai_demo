@@ -96,3 +96,10 @@ def test_rise_deterministic_with_seed(tiny_model, sample_image):
 def test_rise_registered():
     from xai import list_xai_methods
     assert "RISE" in list_xai_methods()
+
+
+def test_rise_distinct_seeds_differ(tiny_model, sample_image):
+    from xai import rise
+    a = rise(tiny_model, sample_image, 0, n_masks=64, batch_size=32, seed=123)
+    c = rise(tiny_model, sample_image, 0, n_masks=64, batch_size=32, seed=999)
+    assert not np.allclose(a, c)
