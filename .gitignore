@@ -150,3 +150,11 @@ Thumbs.db
 # Model files (users will upload their own)
 models/
 uploads/
+
+# --- xai_demo runtime/temp artifacts ---
+.venv/
+__pycache__/
+.pytest_cache/
+temp_extract/
+temp_keras_model_*.h5
+temp_labels_*.txt
