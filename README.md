@@ -69,8 +69,10 @@ Streamlit Cloudでホストされているデモをこちらで試すことが�
 ## ☁️ Cloud Run へのデプロイ
 
 同時アクセス（イベント等）でも安定するよう、本アプリは Google Cloud Run への
-デプロイに対応しています。低 concurrency のインスタンスを水平オートスケール
-させることで、各ユーザーのモデル/推論負荷を複数インスタンスに分散します。
+デプロイに対応しています。水平オートスケール + session-affinity で負荷を分散しつつ、
+1ユーザーのリクエストは1インスタンスに保ち（Streamlit のセッションはインスタンス
+内に保持されるため）、メモリのピークはアプリ内の XAI セマフォと境界つきモデル
+キャッシュで抑えます。
 
 ### 前提
 - `gcloud` CLI 認証済み（`gcloud auth login`）、プロジェクト設定済み
@@ -81,9 +83,17 @@ Streamlit Cloudでホストされているデモをこちらで試すことが�
 ```bash
 ./deploy.sh
 ```
-東京リージョン（`asia-northeast1`）に、cpu 2 / memory 4Gi / concurrency 3 /
+東京リージョン（`asia-northeast1`）に、cpu 2 / memory 4Gi / concurrency 80 /
 session-affinity / max-instances 10 / 公開（認証なし）でデプロイされます。
 アイドル時はゼロスケールするためコストはほぼ発生しません。
+
+> **concurrency を低くしない理由**: Streamlit はセッションをインスタンスのメモリ内に
+> 保持します。ページ読み込み時にブラウザは10以上のリクエスト（アセット + WebSocket）を
+> 並列で投げるため、concurrency を小さくすると1ユーザー分が複数インスタンスに分散し、
+> ファイルアップロードの PUT がセッションを持たないインスタンスに届いて `400`
+> （ブラウザ上は AxiosError）になります。concurrency を高くして1ユーザーを1インスタンスに
+> 収めるのが正解で、メモリ保護は Cloud Run の concurrency ではなくアプリ内のセマフォ +
+> モデルキャッシュが担います。
 
 ### イベント運用（コールドスタート回避）
 ```bash

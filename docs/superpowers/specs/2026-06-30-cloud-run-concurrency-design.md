@@ -179,3 +179,20 @@ gcloud run deploy xai-demo \
 - `session-affinity` でも負荷の偏りはあり得る → concurrency 低めで吸収。
 - `opencv` 系 system lib → headless 版で回避するが、ビルド時に依存解決を確認。
 - `@st.cache_resource` はセッション跨ぎで共有されるため、必ず `max_entries` / `ttl` で境界を設ける。
+
+## 13. デプロイ後の訂正（2026-07-01）— concurrency は高くする
+
+本設計は当初メモリ隔離のため `concurrency=3` を採用したが、**本番でモデルアップロード時に
+`AxiosError`（`PUT /_stcore/upload_file/...` → HTTP 400）が発生**した。
+
+根本原因: Streamlit はセッションを**インスタンスのメモリ内**に保持する。ページ読み込み時に
+ブラウザは10以上のリクエスト（アセット + WebSocket）を並列で投げるため、**低 concurrency だと
+1ユーザー分のバーストが複数インスタンスに分散**し、WebSocket セッションを持つインスタンスと
+アップロード PUT が届くインスタンスが食い違って 400 になる（session-affinity は best-effort で
+cold-burst の分散を防ぎきれない）。
+
+訂正: **`concurrency=80` に変更**（`deploy.sh` 反映済み、本番は revision 00002 で適用・検証済み）。
+メモリのピーク保護は Cloud Run の concurrency ではなく、**アプリ内の `XAI_SEMAPHORE`（同時 XAI=2）
++ 境界つきモデルキャッシュ（`max_entries`/`ttl`）**が担う、という役割分担に整理した。§7.3/§9 の
+「concurrency=3 を主防御線とする」記述は本節で上書きされる。水平スケールは max-instances までの
+インスタンス追加で引き続き機能する。
