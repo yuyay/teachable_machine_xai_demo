@@ -1,0 +1,17 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+temp_model.h5
+temp_extract
+temp_keras_model_*.h5
+temp_labels_*.txt
+tests
+conftest.py
+docs
+.devcontainer
+*.md
+LICENSE
+keras_predict.py
