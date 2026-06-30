@@ -13,7 +13,7 @@ import tensorflow as tf
 from PIL import Image
 
 import config
-from model import load_model_cached, hash_bytes
+from model import load_model_cached, hash_bytes, TeachableMachineModel
 from xai import TensorFlowXAIVisualizer
 
 # In-instance guard so concurrent sessions don't all spike memory at once.
@@ -21,7 +21,12 @@ _XAI_SEMAPHORE = threading.BoundedSemaphore(config.XAI_SEMAPHORE)
 
 
 def configure_tensorflow() -> None:
-    """Limit TF CPU threads once per process (no-op if already initialized)."""
+    """Configure TF CPU thread limits for this session.
+
+    Guarded once per Streamlit session via session_state; if the TF runtime
+    is already initialized in this process, the RuntimeError is ignored
+    (thread settings are process-global and only appltable before init).
+    """
     if st.session_state.get("_tf_configured"):
         return
     try:
@@ -33,7 +38,12 @@ def configure_tensorflow() -> None:
     st.session_state["_tf_configured"] = True
 
 
-def _render_predictions(tm_model, predictions, predicted_class) -> None:
+def _render_predictions(
+    tm_model: TeachableMachineModel,
+    predictions: np.ndarray,
+    predicted_class: int,
+) -> None:
+    """Render the top prediction and per-class probabilities to the UI."""
     st.subheader("🎯 予測結果")
     if tm_model.class_names and len(tm_model.class_names) > predicted_class:
         st.write(f"**予測クラス:** {tm_model.class_names[predicted_class]}")
@@ -49,7 +59,12 @@ def _render_predictions(tm_model, predictions, predicted_class) -> None:
         st.write(f"{label}: {prob:.2%}")
 
 
-def _render_xai(xai_visualizer, image_bgr, predicted_class) -> None:
+def _render_xai(
+    xai_visualizer: TensorFlowXAIVisualizer,
+    image_bgr: np.ndarray,
+    predicted_class: int,
+) -> None:
+    """Run the (semaphore-guarded) XAI computation and render the overlay."""
     with st.spinner("Integrated Gradientsを生成中..."):
         try:
             with _XAI_SEMAPHORE:
@@ -79,6 +94,7 @@ def _render_xai(xai_visualizer, image_bgr, predicted_class) -> None:
 
 
 def _render_instructions() -> None:
+    """Render the landing instructions shown before a model is uploaded."""
     st.info("👈 サイドバーからTeachable Machineモデル（zip）をアップロードしてください。")
     st.markdown(
         """
