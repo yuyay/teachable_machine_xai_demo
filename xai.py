@@ -92,6 +92,71 @@ def _ig_explain(
     return integrated_gradients(model, image, baseline, class_idx)
 
 
+@register_xai_method("RISE")
+def rise(
+    model: tf.keras.Model,
+    image: np.ndarray,
+    class_idx: int,
+    n_masks: int = config.RISE_N,
+    grid: int = config.RISE_GRID,
+    prob: float = config.RISE_PROB,
+    batch_size: int = config.RISE_BATCH,
+    seed: int = config.RISE_SEED,
+) -> np.ndarray:
+    """Compute a RISE saliency map via randomized input masking.
+
+    Generates n_masks low-res (grid x grid) binary masks, bilinearly upsamples
+    and randomly shifts each to (H, W), occludes the input, and weights each
+    mask by the model's score for class_idx. Masks are processed in batches of
+    batch_size to bound peak memory. Seeded for reproducibility.
+
+    Args:
+        model: Keras model mapping (N, H, W, 3) -> (N, num_classes).
+        image: Preprocessed input image, shape (H, W, 3), float32.
+        class_idx: Target class index.
+        n_masks: Number of random masks.
+        grid: Low-resolution mask grid size (grid x grid).
+        prob: Probability a grid cell is on.
+        batch_size: Masks per model forward batch.
+        seed: RNG seed for reproducibility.
+
+    Returns:
+        Normalized importance map of shape (H, W), float32 in [0, 1].
+    """
+    rng = np.random.RandomState(seed)
+    h = w = config.IMG_SIZE
+    cell_h = int(np.ceil(h / grid))
+    cell_w = int(np.ceil(w / grid))
+    up_h = (grid + 1) * cell_h
+    up_w = (grid + 1) * cell_w
+    image = image.astype(np.float32)
+
+    weighted = np.zeros((h, w), dtype=np.float32)
+    for start in range(0, n_masks, batch_size):
+        b = min(batch_size, n_masks - start)
+        grid_masks = (rng.rand(b, grid, grid) < prob).astype(np.float32)
+        masks = np.empty((b, h, w), dtype=np.float32)
+        masked = np.empty((b, h, w, 3), dtype=np.float32)
+        for i in range(b):
+            up = cv2.resize(
+                grid_masks[i], (up_w, up_h), interpolation=cv2.INTER_LINEAR
+            )
+            x = rng.randint(0, up_w - w + 1)
+            y = rng.randint(0, up_h - h + 1)
+            m = up[y:y + h, x:x + w]
+            masks[i] = m
+            masked[i] = image * m[..., np.newaxis]
+        preds = model(masked, training=False).numpy()
+        scores = preds[:, class_idx]
+        weighted += np.tensordot(scores, masks, axes=([0], [0]))
+
+    saliency = weighted / (float(n_masks) * prob)
+    saliency = (saliency - saliency.min()) / (
+        saliency.max() - saliency.min() + 1e-8
+    )
+    return saliency.astype(np.float32)
+
+
 class TensorFlowXAIVisualizer:
     """Integrated-Gradients-based XAI visualizer for Teachable Machine models."""
 

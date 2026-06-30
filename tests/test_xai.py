@@ -76,3 +76,23 @@ def test_ig_adapter_returns_normalized_map(tiny_model, sample_image):
     hm = fn(tiny_model, sample_image, 0)
     assert hm.shape == (config.IMG_SIZE, config.IMG_SIZE)
     assert hm.min() >= 0.0 and hm.max() <= 1.0 + 1e-6
+
+
+def test_rise_shape_and_range(tiny_model, sample_image):
+    from xai import rise
+    hm = rise(tiny_model, sample_image, 0, n_masks=64, batch_size=32)
+    assert hm.shape == (config.IMG_SIZE, config.IMG_SIZE)
+    assert hm.dtype == np.float32
+    assert hm.min() >= 0.0 and hm.max() <= 1.0 + 1e-6
+
+
+def test_rise_deterministic_with_seed(tiny_model, sample_image):
+    from xai import rise
+    a = rise(tiny_model, sample_image, 0, n_masks=64, batch_size=32, seed=123)
+    b = rise(tiny_model, sample_image, 0, n_masks=64, batch_size=32, seed=123)
+    assert np.allclose(a, b)
+
+
+def test_rise_registered():
+    from xai import list_xai_methods
+    assert "RISE" in list_xai_methods()
