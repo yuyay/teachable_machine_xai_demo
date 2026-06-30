@@ -21,3 +21,13 @@ XAI_SEMAPHORE: int = 2
 # Streamlit resource cache bounds for per-user uploaded models
 MODEL_CACHE_MAX_ENTRIES: int = 8
 MODEL_CACHE_TTL: int = 1800  # seconds
+
+# Explanation methods
+DEFAULT_XAI_METHOD: str = "Integrated Gradients"
+
+# RISE (Randomized Input Sampling for Explanation)
+RISE_N: int = 500        # number of random masks
+RISE_GRID: int = 7       # low-res mask grid (s x s)
+RISE_PROB: float = 0.5   # probability a grid cell is on (p1)
+RISE_BATCH: int = 64     # masks per model forward batch (bounds peak memory)
+RISE_SEED: int = 42      # reproducibility

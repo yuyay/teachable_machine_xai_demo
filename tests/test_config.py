@@ -17,3 +17,16 @@ def test_config_constants_present_and_typed():
         "MODEL_CACHE_TTL",
     ):
         assert isinstance(getattr(config, name), int)
+
+
+def test_rise_and_method_constants():
+    assert config.DEFAULT_XAI_METHOD == "Integrated Gradients"
+    assert config.RISE_N == 500
+    assert config.RISE_GRID == 7
+    assert config.RISE_PROB == 0.5
+    assert config.RISE_BATCH == 64
+    assert config.RISE_SEED == 42
+    assert isinstance(config.DEFAULT_XAI_METHOD, str)
+    assert isinstance(config.RISE_PROB, float)
+    for name in ("RISE_N", "RISE_GRID", "RISE_BATCH", "RISE_SEED"):
+        assert isinstance(getattr(config, name), int)
