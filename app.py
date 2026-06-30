@@ -169,8 +169,8 @@ def main() -> None:
     with col1:
         st.header("📷 Webカメラ")
         camera_input = st.camera_input("写真を撮影してください")
-        image_bgr = None
-        predicted_class = None
+        image_bgr: np.ndarray | None = None
+        predicted_class: int = 0
         if camera_input is not None:
             image = Image.open(camera_input)
             image_array = np.array(image)
