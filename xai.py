@@ -164,44 +164,27 @@ class TensorFlowXAIVisualizer:
         self.model = model
 
     def generate_explanation(
-        self, image: np.ndarray, class_idx: int
+        self,
+        image: np.ndarray,
+        class_idx: int,
+        method: str = config.DEFAULT_XAI_METHOD,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Return (overlay_bgr, heatmap_display) for the given BGR image."""
-        img_array = self._preprocess_image(image)
+        """Return (overlay_bgr, heatmap_display) using the named XAI method.
+
+        Dispatches to the registered method; on any failure falls back to the
+        always-available default (Integrated Gradients).
+        """
+        image_norm = self._preprocess_image(image)[0].numpy()
+        fn = get_xai_method(method)
         try:
-            return self._generate_integrated_gradients(img_array, image, class_idx)
-        except Exception:  # noqa: BLE001 - fall back to a cheaper method
-            return self._generate_guided_backprop(img_array, image, class_idx)
-
-    def _generate_integrated_gradients(
-        self, img_array: tf.Tensor, original_image: np.ndarray, class_idx: int
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """Generate an IG heatmap and return (overlay_bgr, heatmap_display)."""
-        baseline = tf.zeros_like(img_array[0])
-        heatmap = integrated_gradients(
-            self.model, img_array[0].numpy(), baseline.numpy(), class_idx
-        )
+            heatmap = fn(self.model, image_norm, class_idx)
+        except Exception:  # noqa: BLE001 - fall back to the default method (IG)
+            baseline = np.zeros_like(image_norm)
+            heatmap = integrated_gradients(
+                self.model, image_norm, baseline, class_idx
+            )
         heatmap = self._smooth_heatmap(heatmap, sigma=2.0)
-        return self._create_visualization(original_image, heatmap)
-
-    def _generate_guided_backprop(
-        self, img_array: tf.Tensor, original_image: np.ndarray, class_idx: int
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """Fallback: gradient-magnitude saliency when IG fails."""
-        with tf.GradientTape() as tape:
-            tape.watch(img_array)
-            predictions = self.model(img_array)
-            class_output = predictions[0][class_idx]
-        grads = tape.gradient(class_output, img_array)
-        if grads is None:
-            raise ValueError("Could not compute gradients")
-        grads = tf.abs(grads[0])
-        importance = tf.reduce_mean(grads, axis=-1)
-        importance = (importance - tf.reduce_min(importance)) / (
-            tf.reduce_max(importance) - tf.reduce_min(importance) + 1e-8
-        )
-        heatmap = self._smooth_heatmap(importance.numpy(), sigma=2.0)
-        return self._create_visualization(original_image, heatmap)
+        return self._create_visualization(image, heatmap)
 
     def _smooth_heatmap(self, heatmap: np.ndarray, sigma: float = 1.0) -> np.ndarray:
         """Apply Gaussian smoothing to a heatmap (scipy, OpenCV fallback)."""

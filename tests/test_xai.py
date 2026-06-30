@@ -103,3 +103,23 @@ def test_rise_distinct_seeds_differ(tiny_model, sample_image):
     a = rise(tiny_model, sample_image, 0, n_masks=64, batch_size=32, seed=123)
     c = rise(tiny_model, sample_image, 0, n_masks=64, batch_size=32, seed=999)
     assert not np.allclose(a, c)
+
+
+def test_generate_explanation_rise(tiny_model):
+    from xai import TensorFlowXAIVisualizer
+    viz = TensorFlowXAIVisualizer(tiny_model)
+    image_bgr = (np.random.RandomState(5).rand(300, 400, 3) * 255).astype(np.uint8)
+    overlay, heatmap = viz.generate_explanation(image_bgr, 0, method="RISE")
+    assert overlay.shape == (config.IMG_SIZE, config.IMG_SIZE, 3)
+    assert overlay.dtype == np.uint8
+    assert heatmap.shape == (config.IMG_SIZE, config.IMG_SIZE)
+
+
+def test_generate_explanation_unknown_method_falls_back(tiny_model):
+    from xai import TensorFlowXAIVisualizer
+    viz = TensorFlowXAIVisualizer(tiny_model)
+    image_bgr = (np.random.RandomState(6).rand(240, 240, 3) * 255).astype(np.uint8)
+    # unknown method name resolves to the default (IG) and still returns a map
+    overlay, heatmap = viz.generate_explanation(image_bgr, 0, method="does-not-exist")
+    assert overlay.shape == (config.IMG_SIZE, config.IMG_SIZE, 3)
+    assert heatmap.shape == (config.IMG_SIZE, config.IMG_SIZE)
