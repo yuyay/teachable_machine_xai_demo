@@ -14,7 +14,7 @@ import os
 import tempfile
 import zipfile
 
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, Browser
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_URL = "https://xai-demo-ba4vygvkya-an.a.run.app"
@@ -40,7 +40,7 @@ def _build_model_zip(path: str) -> None:
         zf.writestr("labels.txt", "0 ClassA\n1 ClassB\n")
 
 
-async def _run_session(browser, url: str, zip_path: str, timeout_ms: int, idx: int) -> dict:
+async def _run_session(browser: Browser, url: str, zip_path: str, timeout_ms: int, idx: int) -> dict[str, object]:
     """Run a single browser session: upload model, take photo, check result.
 
     Args:
@@ -94,25 +94,28 @@ async def _main_async(n: int, url: str, timeout_ms: int, headed: bool) -> int:
     Returns:
         0 if all sessions passed, 1 otherwise.
     """
-    tmpdir = tempfile.mkdtemp(prefix="loadtest_")
-    y4m = os.path.join(tmpdir, "fake_camera.y4m")
-    zip_path = os.path.join(tmpdir, "model.zip")
-    _write_fake_y4m(y4m)
-    _build_model_zip(zip_path)
+    with tempfile.TemporaryDirectory(prefix="loadtest_") as tmpdir:
+        # One shared fake camera + model zip for all sessions: the .y4m is read
+        # once at browser launch, and concurrent read-only set_input_files on the
+        # zip is safe across contexts.
+        y4m = os.path.join(tmpdir, "fake_camera.y4m")
+        zip_path = os.path.join(tmpdir, "model.zip")
+        _write_fake_y4m(y4m)
+        _build_model_zip(zip_path)
 
-    async with async_playwright() as pw:
-        browser = await pw.chromium.launch(
-            headless=not headed,
-            args=[
-                "--use-fake-device-for-media-stream",
-                "--use-fake-ui-for-media-stream",
-                f"--use-file-for-fake-video-capture={y4m}",
-            ],
-        )
-        results = await asyncio.gather(
-            *[_run_session(browser, url, zip_path, timeout_ms, i) for i in range(n)]
-        )
-        await browser.close()
+        async with async_playwright() as pw:
+            browser = await pw.chromium.launch(
+                headless=not headed,
+                args=[
+                    "--use-fake-device-for-media-stream",
+                    "--use-fake-ui-for-media-stream",
+                    f"--use-file-for-fake-video-capture={y4m}",
+                ],
+            )
+            results = await asyncio.gather(
+                *[_run_session(browser, url, zip_path, timeout_ms, i) for i in range(n)]
+            )
+            await browser.close()
 
     passed = sum(1 for r in results if r["ok"])
     print(f"\n=== {passed}/{n} sessions passed (url={url}) ===")
