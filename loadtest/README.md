@@ -8,6 +8,7 @@
 uv pip install -r requirements-dev.txt
 .venv/bin/python -m playwright install chromium
 ```
+- リポジトリ直下に `temp_model.h5`（層2 が zip を組む元のモデル）が存在すること
 
 ## 層1: 計算同時実行（ローカル・メモリ/例外）
 N スレッドで `predict`+IG/RISE を同時に回し、例外なく完了し、ピーク RSS が

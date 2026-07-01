@@ -54,8 +54,9 @@ async def _run_session(browser: Browser, url: str, zip_path: str, timeout_ms: in
         Dict with keys ``idx``, ``ok`` (bool), ``error`` (str or None).
     """
     res = {"idx": idx, "ok": False, "error": None}
-    ctx = await browser.new_context()
+    ctx = None
     try:
+        ctx = await browser.new_context()
         try:
             await ctx.grant_permissions(["camera"], origin=url)
         except Exception:  # noqa: BLE001 - fake-ui already auto-grants; ignore
@@ -78,7 +79,8 @@ async def _run_session(browser: Browser, url: str, zip_path: str, timeout_ms: in
     except Exception as exc:  # noqa: BLE001 - report per-session failure
         res["error"] = repr(exc)
     finally:
-        await ctx.close()
+        if ctx is not None:
+            await ctx.close()
     return res
 
 

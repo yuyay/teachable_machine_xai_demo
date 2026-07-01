@@ -28,12 +28,16 @@ RSS_LIMIT_GB = float(os.environ.get("LOAD_RSS_LIMIT_GB", "6.0"))
 
 def _sample_peak_rss(stop_event: threading.Event, result: dict) -> None:
     """Background sampler: record the process's peak RSS until stopped."""
-    proc = psutil.Process()
-    peak = 0
-    while not stop_event.is_set():
-        peak = max(peak, proc.memory_info().rss)
-        time.sleep(0.1)
-    result["peak"] = peak
+    try:
+        proc = psutil.Process()
+        peak = 0
+        while not stop_event.is_set():
+            peak = max(peak, proc.memory_info().rss)
+            time.sleep(0.1)
+        result["peak"] = peak
+    except Exception as exc:  # noqa: BLE001 - surface sampler failure, don't report a false 0
+        result["peak"] = -1
+        result["sampler_error"] = repr(exc)
 
 
 def test_concurrent_predict_and_explain(model_zip_bytes):
@@ -74,7 +78,9 @@ def test_concurrent_predict_and_explain(model_zip_bytes):
     stop.set()
     sampler.join()
 
-    peak_gb = result.get("peak", 0) / 1e9
+    peak = result.get("peak", -1)
+    assert peak >= 0, f"RSS sampler failed: {result.get('sampler_error')}"
+    peak_gb = peak / 1e9
     print(
         f"\n[load] N={N_THREADS} iters={ITERATIONS} "
         f"elapsed={elapsed:.1f}s peak_RSS={peak_gb:.2f}GB"
